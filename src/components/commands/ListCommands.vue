@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import confirmDialog from "../../utils/confirmDialog";
 
 import { store } from "../../store/store";
 
+const emit = defineEmits(["edit"] as const);
 
 const openGroup = ref<string | null>(null);
+const openMenu = ref<string | null>(null);
 
 function toggleGroup(group: string) {
   openGroup.value = openGroup.value === group ? null : group;
@@ -15,23 +17,52 @@ function copyCommand(cmd: string) {
   navigator.clipboard.writeText(cmd);
 }
 
-async function confirmDelete(index: number) {
-  console.log('test')
+function toggleMenu(group: string, index: number | string) {
+  const key = `${group}-${index}`;
+  openMenu.value = openMenu.value === key ? null : key;
+}
 
+async function confirmDelete(index: number) {
   const group = openGroup.value;
 
   if (group !== null) {
-    await confirmDialog("warning", "Confirm Deletion", "Are you sure you want to delete this command?", () => {
-      store.removeCommand(group, index);
-    });
+    await confirmDialog(
+      "warning",
+      "Confirm Deletion",
+      "Are you sure you want to delete this command?",
+      () => {
+        store.removeCommand(group, index);
+      },
+    );
   }
+}
+
+function editCommand(group: string, index: number) {
+  emit("edit", { group, index });
+  openMenu.value = null;
 }
 
 const data = computed(() => {
   return Object.entries(store.commands);
 });
 
+function onDocumentClick(e: Event) {
+  const target = e.target as HTMLElement | null;
+  if (!target) return;
+  if (!target.closest) return;
+  // if the click happened outside any menu-container, close menus
+  if (!target.closest(".menu-container")) {
+    openMenu.value = null;
+  }
+}
 
+onMounted(() => {
+  document.addEventListener("click", onDocumentClick);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onDocumentClick);
+});
 </script>
 
 <template>
@@ -55,9 +86,31 @@ const data = computed(() => {
               <button @click="copyCommand(cmd.command)">
                 <i class="pi pi-clipboard"></i>
               </button>
-              <button @click="confirmDelete(index)" id="delete-command-button">
-                <i class="pi pi-trash"></i>
-              </button>
+
+              <div class="menu-container accordion-content-actions">
+                <button
+                  class="menu-button"
+                  @click.stop="toggleMenu(group, index)"
+                >
+                  <i class="pi pi-ellipsis-v"></i>
+                </button>
+                <div
+                  v-if="openMenu === group + '-' + index"
+                  class="menu-dropdown"
+                >
+                  <button class="menu-item" @click="editCommand(group, index)">
+                    <i class="pi pi-pencil"></i>
+                    Edit
+                  </button>
+                  <button
+                    class="menu-item delete"
+                    @click="confirmDelete(index)"
+                  >
+                    <i class="pi pi-trash"></i>
+                    Delete
+                  </button>
+                </div>
+              </div>
             </div>
           </li>
         </ul>
@@ -121,7 +174,36 @@ const data = computed(() => {
   gap: 10px;
 }
 
-#delete-command-button {
-  background-color: #dc2626;
+.menu-container {
+  position: relative;
+}
+
+.menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 36px;
+  color: #000;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-item {
+  padding: 8px 12px;
+  border: none;
+  text-align: left;
+  border-radius: 0;
+}
+
+.menu-item:hover {
+  background: #797979;
+}
+
+.menu-item.delete {
+  color: #dc2626;
 }
 </style>

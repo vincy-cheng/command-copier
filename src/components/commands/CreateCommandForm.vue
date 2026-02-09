@@ -1,25 +1,53 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { store } from "../../store/store";
+
+const props = defineProps<{
+  editing: { group: string; index: number } | null;
+}>();
+const emit = defineEmits(["done"] as const);
 
 const group = ref("");
 const command = ref("");
 const description = ref("");
 
+watch(
+  () => props.editing,
+  (val) => {
+    if (
+      val &&
+      store.commands[val.group] &&
+      store.commands[val.group][val.index]
+    ) {
+      const cmd = store.commands[val.group][val.index];
+      group.value = val.group;
+      command.value = cmd.command;
+      description.value = cmd.description;
+    } else if (!val) {
+      group.value = "";
+      command.value = "";
+      description.value = "";
+    }
+  },
+  { immediate: true },
+);
+
 function submitForm() {
-  // Handle form submission
-  console.log("Group:", group.value);
-  console.log("Command:", command.value);
-  console.log("Description:", description.value);
-
-  store.addCommand(group.value, {
-    command: command.value,
-    description: description.value,
-  });
-
-  group.value = "";
-  command.value = "";
-  description.value = "";
+  if (props.editing) {
+    store.updateCommand(props.editing.group, props.editing.index, {
+      command: command.value,
+      description: description.value,
+    });
+    emit("done");
+  } else {
+    store.addCommand(group.value, {
+      command: command.value,
+      description: description.value,
+    });
+    group.value = "";
+    command.value = "";
+    description.value = "";
+  }
 }
 
 const groups = computed(() => {
@@ -29,7 +57,7 @@ const groups = computed(() => {
 
 <template>
   <div class="create-command-form">
-    <h1>Create Command</h1>
+    <h1>{{ props.editing ? "Edit Command" : "Create Command" }}</h1>
 
     <form @submit.prevent="submitForm">
       <div class="select-group">
@@ -69,7 +97,12 @@ const groups = computed(() => {
         <textarea id="description" v-model="description"></textarea>
       </div>
 
-      <button type="submit">Create</button>
+      <div style="display: flex; gap: 8px">
+        <button type="submit">{{ props.editing ? "Save" : "Create" }}</button>
+        <button type="button" v-if="props.editing" @click="emit('done')">
+          Cancel
+        </button>
+      </div>
     </form>
   </div>
 </template>

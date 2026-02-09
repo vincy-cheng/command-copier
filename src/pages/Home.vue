@@ -1,14 +1,25 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import CreateCommandForm from "../components/commands/CreateCommandForm.vue";
 import ListCommands from "../components/commands/ListCommands.vue";
+
+const editState = ref<{ group: string; index: number } | null>(null);
+
+function onEdit(payload: { group: string; index: number }) {
+  editState.value = payload;
+}
+
+function onDone() {
+  editState.value = null;
+}
 </script>
 
 <template>
   <div class="home">
     <!-- <p>Copy and manage your commands easily.</p> -->
     <div class="grid-container">
-      <CreateCommandForm />
-      <ListCommands />
+      <CreateCommandForm :editing="editState" @done="onDone" />
+      <ListCommands @edit="onEdit" />
     </div>
   </div>
 </template>

@@ -23,6 +23,7 @@ interface Store {
   commands: Commands;
   refreshCommands: () => void;
   addCommand: (key: string, command: Command) => void;
+  updateCommand: (key: string, index: number, command: Command) => void;
   removeCommand: (key: string, index: number) => void;
   removeEntireGroup: (key: string) => void;
   importCommands: () => void;
@@ -45,6 +46,12 @@ export const store = reactive<Store>({
 
     // Save the commands to local storage
     localStorage.setItem("commands", JSON.stringify(this.commands));
+  },
+  updateCommand(key: string, index: number, command: Command) {
+    if (!this.commands[key] || !this.commands[key][index]) return;
+    this.commands[key][index] = command;
+    localStorage.setItem("commands", JSON.stringify(this.commands));
+    this.refreshCommands();
   },
   importCommands() {
     const input = document.createElement("input");
