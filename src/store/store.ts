@@ -39,19 +39,16 @@ export const store = reactive<Store>({
     }
   },
   addCommand(key: string, command: Command) {
-    if (!this.commands[key]) {
-      this.commands[key] = [];
-    }
-    this.commands[key].push(command);
-
-    // Save the commands to local storage
-    localStorage.setItem("commands", JSON.stringify(this.commands));
+    const commands = { ...this.commands, [key]: [...(this.commands[key] ?? []), command] };
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
   },
   updateCommand(key: string, index: number, command: Command) {
     if (!this.commands[key] || !this.commands[key][index]) return;
-    this.commands[key][index] = command;
-    localStorage.setItem("commands", JSON.stringify(this.commands));
-    this.refreshCommands();
+    const commands = { ...this.commands, [key]: [...this.commands[key]] };
+    commands[key][index] = command;
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
   },
   importCommands() {
     const input = document.createElement("input");
@@ -100,14 +97,18 @@ export const store = reactive<Store>({
     input.click();
   },
   removeCommand(key: string, index: number) {
-    this.commands[key].splice(index, 1);
-    localStorage.setItem("commands", JSON.stringify(this.commands));
-    this.refreshCommands();
+    if (!this.commands[key] || !this.commands[key][index]) return;
+    const commands = { ...this.commands, [key]: [...this.commands[key]] };
+    commands[key].splice(index, 1);
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
   },
   removeEntireGroup(key: string) {
-    delete this.commands[key];
-    localStorage.setItem("commands", JSON.stringify(this.commands));
-    this.refreshCommands();
+    if (!this.commands[key]) return;
+    const commands = { ...this.commands };
+    delete commands[key];
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
   },
   async exportCommands() {
     const data = JSON.stringify(this.commands, null, 2);
