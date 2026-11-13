@@ -37,7 +37,7 @@ export async function loadVueComponent(path, dependencies = {}, globals = {}) {
 
 export function mount(component, props = {}) {
   const renderer = vue.createRenderer({
-    createElement: (type) => ({ type, props: {}, children: [], parent: null, text: "" }),
+    createElement: (type) => ({ type, props: {}, children: [], parent: null, text: "", addEventListener() {}, removeEventListener() {}, focus() {} }),
     createText: (text) => ({ type: "#text", text, parent: null }),
     createComment: (text) => ({ type: "#comment", text, parent: null }),
     setText: (node, text) => { node.text = text; },

@@ -11,9 +11,11 @@ async function runImport({ text, storageError, cancel = false }) {
     sendAlert: async (...args) => alerts.push(args),
   });
   store.commands = { old: [{ command: "keep", description: "old" }] };
-  store.importCommands();
+  const completion = store.importCommands();
   if (cancel) input.oncancel();
   else await input.onchange();
+  await completion;
+  assert.equal(store.importing, false, "busy is released after every import outcome");
   return { store, input, alerts };
 }
 
@@ -39,5 +41,20 @@ for (const [name, options] of [
   assert.deepEqual(store.commands, { old: [{ command: "keep", description: "old" }] });
   assert.equal(input.removed, true);
   assert.equal(alerts.length, 0);
+}
+{
+  let release;
+  const input = { files: [{ text: () => new Promise((resolve) => { release = () => resolve(valid); }) }], remove() {}, click() {} };
+  const document = { createElement: () => input, body: { appendChild() {} } };
+  const store = await loadStore({ document, localStorage: { setItem() {} } });
+  const completion = store.importCommands();
+  const reading = input.onchange();
+  const busyWhileReading = store.importing;
+  await store.importCommands();
+  release();
+  await reading;
+  await completion;
+  assert.equal(busyWhileReading, true, "import stays busy until file reading and publication finish");
+  assert.equal(store.importing, false, "import releases busy after completion");
 }
 console.log("Import command tests passed (valid replacement, invalid structure, read/storage failure, cancel cleanup).");

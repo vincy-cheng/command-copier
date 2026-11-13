@@ -26,6 +26,7 @@ async function loadHome({ clipboard = { writeText: async () => {} }, removeComma
     "../components/commands/CreateCommandForm.vue": { default: form },
     "../components/commands/ListCommands.vue": { default: list },
     "../store/store": { store },
+    "../utils/confirmDialog": { default: async (_type, _content, _title, action) => action?.() },
   });
   return { store, ...mount(home) };
 }
@@ -130,4 +131,31 @@ test("startup refresh errors are visible and existing commands remain intact", a
   assert.match(textContent(tree), /Could not load commands: storage unavailable/);
   assert.deepEqual(store.commands.Saved, [{ command: "keep", description: "Existing" }]);
   assert.match(textContent(tree), /Refresh.*Import.*Export/);
+});
+
+test("startup refresh and import proceed when the dialog is closed", async () => {
+  let guards = 0;
+  let imports = 0;
+  const store = reactive({
+    commands: {},
+    async refreshCommands() {},
+    async importCommands() { imports++; },
+    exportCommands() {},
+  });
+  const home = {
+    setup(_props, { expose }) {
+      expose({ async prepareReplacement() { guards++; return true; } });
+      return () => null;
+    },
+  };
+  const appComponent = await loadVueComponent(resolve(root, "src/App.vue"), {
+    "./pages/Home.vue": { default: home },
+    "./store/store": { store },
+  });
+  const { root: tree } = mount(appComponent);
+  await new Promise((resolve) => setImmediate(resolve));
+  const importButton = findAll(tree, (node) => node.type === "button" && textContent(node).includes("Import"))[0];
+  await importButton.props.onClick();
+  assert.equal(guards, 2, "startup refresh and import both consult the guard");
+  assert.equal(imports, 1, "import runs after the closed dialog is cleared");
 });

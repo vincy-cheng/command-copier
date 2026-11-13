@@ -21,17 +21,19 @@ type Commands = {
 // Define the type for the store
 interface Store {
   commands: Commands;
-  refreshCommands: () => void;
+  importing: boolean;
+  refreshCommands: () => Promise<void>;
   addCommand: (key: string, command: Command) => void;
   updateCommand: (key: string, index: number, command: Command) => void;
   removeCommand: (key: string, index: number) => void;
   removeEntireGroup: (key: string) => void;
-  importCommands: () => void;
+  importCommands: () => Promise<void>;
   exportCommands: () => void;
 }
 
 export const store = reactive<Store>({
   commands: {},
+  importing: false,
   async refreshCommands() {
     const storedCommands = localStorage.getItem("commands");
     if (storedCommands) {
@@ -51,11 +53,23 @@ export const store = reactive<Store>({
     this.commands = commands;
   },
   importCommands() {
+    if (this.importing) return Promise.resolve();
+    this.importing = true;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
     input.hidden = true;
-    input.oncancel = () => input.remove();
+    let finish!: () => void;
+    let finished = false;
+    const completion = new Promise<void>((resolve) => { finish = resolve; });
+    const cleanup = () => {
+      if (finished) return;
+      finished = true;
+      input.remove();
+      this.importing = false;
+      finish();
+    };
+    input.oncancel = cleanup;
     input.onchange = async () => {
       try {
         const file = input.files?.[0];
@@ -82,19 +96,24 @@ export const store = reactive<Store>({
         localStorage.setItem("commands", JSON.stringify(commands));
         this.commands = commands;
       } catch (error) {
-        await sendAlert(
-          "error",
-          `Import failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        try {
+          await sendAlert("error", `Import failed: ${error instanceof Error ? error.message : String(error)}`);
+        } catch { /* Dialog failures must not strand the import lifecycle. */ }
         return;
       } finally {
-        input.remove();
+        cleanup();
       }
-      await sendAlert("info", "Commands are imported");
+      try { await sendAlert("info", "Commands are imported"); } catch { /* Import is already complete. */ }
     };
     // Keep the picker alive while WebKit waits for file selection.
-    document.body.appendChild(input);
-    input.click();
+    try {
+      document.body.appendChild(input);
+      input.click();
+    } catch (error) {
+      cleanup();
+      void sendAlert("error", `Import failed: ${error instanceof Error ? error.message : String(error)}`).catch(() => {});
+    }
+    return completion;
   },
   removeCommand(key: string, index: number) {
     if (!this.commands[key] || !this.commands[key][index]) return;

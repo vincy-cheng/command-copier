@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import CreateCommandForm from "../components/commands/CreateCommandForm.vue";
 import ListCommands from "../components/commands/ListCommands.vue";
 import { store } from "../store/store";
+import confirmDialog from "../utils/confirmDialog";
 
 const editState = ref<{ group: string; index: number } | null>(null);
+const opened = ref(false);
+const dirty = ref(false);
+const initialGroup = ref("");
+const dialog = ref<HTMLDialogElement | null>(null);
+const opener = ref<HTMLElement | null>(null);
+const feedback = ref("");
 const query = ref("");
 const selectedGroup = ref("");
 
@@ -31,31 +38,94 @@ watch(groups, (current) => {
 });
 
 function onEdit(payload: { group: string; index: number }) {
+  if (store.importing || opened.value) return;
+  opener.value = document.activeElement as HTMLElement;
   editState.value = payload;
+  initialGroup.value = payload.group;
+  opened.value = true;
 }
 
-function onDone() {
+watch(opened, async (value) => {
+  if (value) {
+    dialog.value?.showModal?.();
+    await nextTick();
+    dialog.value?.querySelector?.("textarea")?.focus?.();
+  }
+});
+
+function closeForm() {
+  opened.value = false;
+  dirty.value = false;
   editState.value = null;
+  dialog.value?.close?.();
 }
+
+function onDone(action: "added" | "edited") {
+  feedback.value = action === "added"
+    ? query.value || selectedGroup.value ? "Command added. Clear filters to view it." : "Command added."
+    : "Command updated.";
+  closeForm();
+}
+
+async function requestClose() {
+  if (dirty.value) {
+    let confirmed = false;
+    try {
+      await confirmDialog("warning", "Discard unsaved changes?", "Unsaved changes", () => { confirmed = true; });
+    } catch {
+      return false;
+    }
+    if (!confirmed) return false;
+  }
+  closeForm();
+  return true;
+}
+
+async function prepareReplacement() {
+  if (!opened.value) return true;
+  if (!(await requestClose())) return false;
+  return true;
+}
+
+function onDialogCancel(event: Event) {
+  event.preventDefault();
+  void requestClose();
+}
+
+function onDialogClose() {
+  if (!opened.value) {
+    const target = opener.value?.isConnected ? opener.value : document.querySelector<HTMLElement>(".add-command-trigger");
+    target?.focus?.();
+  }
+}
+
+function onAdd(group = "") {
+  if (store.importing || opened.value) return;
+  opener.value = document.activeElement as HTMLElement;
+  editState.value = null;
+  initialGroup.value = group;
+  feedback.value = "";
+  opened.value = true;
+}
+
+defineExpose({ prepareReplacement });
 
 function clearFilters() {
   query.value = "";
   selectedGroup.value = "";
 }
 
-function onAdd() {
-  editState.value = null;
-  document.querySelector<HTMLTextAreaElement>(".create-command-form textarea")?.focus();
-}
 </script>
 
 <template>
   <div class="home">
     <!-- <p>Copy and manage your commands easily.</p> -->
     <div class="grid-container">
-      <CreateCommandForm :editing="editState" @done="onDone" />
       <section class="library">
         <h2>Command library</h2>
+        <button class="add-command-trigger" type="button" :disabled="store.importing" @click="onAdd(selectedGroup)">Add command</button>
+        <p role="status" aria-live="polite">{{ feedback }}</p>
+        <button v-if="feedback === 'Command added. Clear filters to view it.'" type="button" @click="clearFilters">Clear filters</button>
         <label>
           Search commands
           <input
@@ -81,6 +151,18 @@ function onAdd() {
         />
       </section>
     </div>
+    <dialog ref="dialog" aria-labelledby="command-dialog-title" @cancel="onDialogCancel" @close="onDialogClose">
+      <button type="button" aria-label="Close dialog" @click="requestClose">Close</button>
+      <CreateCommandForm
+        v-if="opened"
+        :editing="editState"
+        :opened="opened"
+        :initial-group="initialGroup"
+        @dirty="dirty = $event"
+        @done="onDone"
+        @cancel="requestClose"
+      />
+    </dialog>
   </div>
 </template>
 

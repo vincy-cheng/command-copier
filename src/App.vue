@@ -6,8 +6,10 @@ import Home from "./pages/Home.vue";
 import { store } from "./store/store";
 
 const loadError = ref("");
+const home = ref<InstanceType<typeof Home> | null>(null);
 
 async function refreshCommands() {
+  if (home.value?.prepareReplacement && !(await home.value.prepareReplacement())) return;
   loadError.value = "";
   try {
     await store.refreshCommands();
@@ -20,8 +22,9 @@ function exportCommands() {
   store.exportCommands();
 }
 
-function importCommands() {
-  store.importCommands();
+async function importCommands() {
+  if (home.value?.prepareReplacement && !(await home.value.prepareReplacement())) return;
+  await store.importCommands();
 }
 
 onMounted(() => {
@@ -45,7 +48,7 @@ onMounted(() => {
       </button>
     </div>
     <p v-if="loadError" role="alert">{{ loadError }}</p>
-    <Home />
+    <Home ref="home" />
   </main>
 </template>
 
