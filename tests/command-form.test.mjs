@@ -90,13 +90,13 @@ test("refresh/import guard asks before discarding dirty fields and respects reje
   const exposed = mounted.app._instance.exposed;
   assert.equal(await exposed.prepareReplacement(), true, "a closed dialog does not block startup work");
   store.importing = true;
-  findAll(mounted.root, (node) => node.type === "button" && textContent(node) === "Edit")[0].props.onClick();
+  findAll(mounted.root, (node) => node.type === "button" && textContent(node).trim() === "Edit")[0].props.onClick();
   await nextTick();
   assert.equal(findAll(mounted.root, (node) => node.type === "form").length, 0, "an edit cannot open while file reading/import is busy");
   store.importing = false;
   const groupFilter = findAll(mounted.root, (node) => node.type === "select")[0];
   groupFilter.props.onChange({ target: { value: "Tools" } });
-  findAll(mounted.root, (node) => node.type === "button" && textContent(node) === "Add command")[0].props.onClick();
+  findAll(mounted.root, (node) => node.type === "button" && textContent(node).trim() === "Add command")[0].props.onClick();
   await nextTick();
   assert.equal(fields(mounted.root).groupChoice.props.value, "Tools", "Add command in a selected group preselects that group");
   input(fields(mounted.root).command, "unsaved");

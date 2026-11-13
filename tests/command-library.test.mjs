@@ -64,11 +64,11 @@ test("filtered row actions use original index and show resolved clipboard feedba
   const search = findAll(tree, (node) => node.type === "input" && node.props.placeholder === "Search commands")[0];
   search.props.onInput({ target: { value: "checks" } });
   await nextTick();
-  const copy = findAll(tree, (node) => node.type === "button" && textContent(node) === "Copy")[0];
+  const copy = findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Copy")[0];
   await copy.props.onClick();
   await nextTick();
   assert.match(textContent(tree), /Copied/);
-  const remove = findAll(tree, (node) => node.type === "button" && textContent(node) === "Delete")[0];
+  const remove = findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Delete")[0];
   await remove.props.onClick();
   assert.deepEqual(removed, [["Build", 1]]);
 });
@@ -81,16 +81,16 @@ test("clipboard rejection shows an error and failed deletion preserves the row w
   const search = findAll(tree, (node) => node.type === "input" && node.props.placeholder === "Search commands")[0];
   search.props.onInput({ target: { value: "checks" } });
   await nextTick();
-  const copy = findAll(tree, (node) => node.type === "button" && textContent(node) === "Copy")[0];
+  const copy = findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Copy")[0];
   await copy.props.onClick();
   await nextTick();
   assert.match(textContent(tree), /Copy failed: permission denied/);
-  const remove = findAll(tree, (node) => node.type === "button" && textContent(node) === "Delete")[0];
+  const remove = findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Delete")[0];
   await remove.props.onClick();
   await nextTick();
   assert.match(textContent(tree), /Delete failed: storage full/);
   assert.equal(store.commands.Build.length, 2);
-  assert.ok(findAll(tree, (node) => node.type === "button" && textContent(node) === "Delete").length > 0);
+  assert.ok(findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Delete").length > 0);
 });
 
 test("empty library and empty groups offer an Add command action", async () => {
@@ -98,7 +98,7 @@ test("empty library and empty groups offer an Add command action", async () => {
   assert.match(textContent(empty.root), /No commands saved yet/);
   const grouped = await loadHome({ commands: { Empty: [] } });
   assert.match(textContent(grouped.root), /Empty \(0\)/);
-  const add = findAll(grouped.root, (node) => node.type === "button" && textContent(node) === "Add command")[0];
+  const add = findAll(grouped.root, (node) => node.type === "button" && textContent(node).trim() === "Add command")[0];
   assert.ok(add);
   add.props.onClick();
 });
