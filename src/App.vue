@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import "primeicons/primeicons.css";
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 
 import Home from "./pages/Home.vue";
 import { store } from "./store/store";
-import sendAlert from "./utils/sendAlert";
+
+const loadError = ref("");
 
 async function refreshCommands() {
-  store.refreshCommands();
-  await sendAlert("info", "Commands are updated");
+  loadError.value = "";
+  try {
+    await store.refreshCommands();
+  } catch (error) {
+    loadError.value = `Could not load commands: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
 
 function exportCommands() {
@@ -39,6 +44,7 @@ onMounted(() => {
         <i class="pi pi-file-export"></i> <span>Export</span>
       </button>
     </div>
+    <p v-if="loadError" role="alert">{{ loadError }}</p>
     <Home />
   </main>
 </template>
