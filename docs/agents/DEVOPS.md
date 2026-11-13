@@ -15,7 +15,7 @@ Use npm with `package-lock.json`. Desktop development also requires Rust and the
 
 ## Verification status
 
-`npm run build` passed on 2026-11-13. No test script, test suite or test framework was found. A build pass does not verify native dialogs, filesystem access or the import file picker.
+`npm run build` passed on 2026-11-13. Run `node tests/import-commands.mjs` for the import regression check. It exercises the store with mocked file selection, storage and alerts; it covers empty and existing storage, validation, read/storage failures and picker cleanup. No npm test script or test framework is configured. A build pass does not verify native dialogs, filesystem access or the import file picker.
 
 The installed ESLint 9 fails to find a flat configuration when invoked as `./node_modules/.bin/eslint src --no-fix`. The repository currently has legacy `.eslintrc.js`; lint is not a working verification gate. Repairing lint is separate from bootstrap.
 

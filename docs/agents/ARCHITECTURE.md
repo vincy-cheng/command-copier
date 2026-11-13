@@ -17,7 +17,7 @@ Command Copier is a Vue 3 / TypeScript frontend hosted in a Tauri 2 desktop app.
 
 The reactive store holds an object mapping group names to arrays of `{ command, description }`. Store mutations persist this object under the browser localStorage key `commands`; refresh reads that key. The list derives its groups from the reactive store. Commands are copied through `navigator.clipboard`; the frontend does not execute the stored shell commands.
 
-Import creates a browser file input, reads the selected JSON and replaces the complete command collection. It currently has no runtime schema validation or error handling. Export uses the filesystem plugin to create or overwrite `commands.json` in Downloads. Changes here must preserve existing data on failure.
+Import keeps a hidden browser file input attached during selection, validates grouped command JSON and replaces the complete collection after persistence succeeds. Completion and cancellation remove the input; failures show an error and preserve existing commands. Export uses the filesystem plugin to create or overwrite `commands.json` in Downloads. Changes here must preserve existing data on failure.
 
 The Rust entry point registers dialog, filesystem and shell plugins. Its `greet` command is template code; command management lives in the frontend. No database or application HTTP API was found.
 

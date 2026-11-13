@@ -57,16 +57,46 @@ export const store = reactive<Store>({
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
+    input.hidden = true;
+    input.oncancel = () => input.remove();
     input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file) {
+      try {
+        const file = input.files?.[0];
+        if (!file) return;
         const data = await file.text();
-        this.commands = JSON.parse(data) as Commands;
-        localStorage.setItem("commands", JSON.stringify(this.commands));
-        this.refreshCommands();
-        sendAlert("info", "Commands are imported");
+        const commands = JSON.parse(data);
+        if (
+          !commands ||
+          typeof commands !== "object" ||
+          Array.isArray(commands) ||
+          !Object.values(commands).every(
+            (group) =>
+              Array.isArray(group) &&
+              group.every(
+                (cmd) =>
+                  cmd &&
+                  typeof cmd.command === "string" &&
+                  typeof cmd.description === "string",
+              ),
+          )
+        ) {
+          throw new Error("Expected groups containing commands and descriptions");
+        }
+        localStorage.setItem("commands", JSON.stringify(commands));
+        this.commands = commands;
+      } catch (error) {
+        await sendAlert(
+          "error",
+          `Import failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return;
+      } finally {
+        input.remove();
       }
+      await sendAlert("info", "Commands are imported");
     };
+    // Keep the picker alive while WebKit waits for file selection.
+    document.body.appendChild(input);
     input.click();
   },
   removeCommand(key: string, index: number) {
