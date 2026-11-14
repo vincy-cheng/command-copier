@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import confirmDialog from "../../utils/confirmDialog";
 import { store } from "../../store/store";
 
@@ -13,16 +13,34 @@ const emit = defineEmits(["edit", "add", "clearFilters"] as const);
 const feedback = ref<Record<string, string>>({});
 const deleteError = ref("");
 
+watch(
+  () => store.commands,
+  () => { feedback.value = {}; },
+  { deep: true },
+);
+
 function rowKey(group: string, index: number) {
   return `${group}-${index}`;
 }
 
 async function copyCommand(group: string, index: number, command: string) {
   const key = rowKey(group, index);
+  const collection = store.commands;
+  const row = collection[group]?.[index];
   try {
     await navigator.clipboard.writeText(command);
+    if (
+      store.commands !== collection ||
+      collection[group]?.[index] !== row ||
+      row?.command !== command
+    ) return;
     feedback.value[key] = "Copied";
   } catch (error) {
+    if (
+      store.commands !== collection ||
+      collection[group]?.[index] !== row ||
+      row?.command !== command
+    ) return;
     feedback.value[key] =
       `Copy failed: ${error instanceof Error ? error.message : String(error)}`;
   }

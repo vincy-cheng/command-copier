@@ -93,6 +93,63 @@ test("clipboard rejection shows an error and failed deletion preserves the row w
   assert.ok(findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Delete").length > 0);
 });
 
+test("copy feedback clears when a command at the same row is edited or replaced", async () => {
+  const { root: tree, store } = await loadHome({
+    commands: { Build: [{ command: "old", description: "" }] },
+  });
+  const copy = findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Copy")[0];
+  await copy.props.onClick();
+  await nextTick();
+  assert.match(textContent(tree), /Copied/);
+  store.commands.Build[0].command = "edited";
+  await nextTick();
+  assert.doesNotMatch(textContent(tree), /Copied/);
+  const editedCopy = findAll(
+    tree,
+    (node) => node.type === "button" && textContent(node).trim() === "Copy",
+  )[0];
+  await editedCopy.props.onClick();
+  await nextTick();
+  assert.match(textContent(tree), /Copied/);
+  store.commands = { Build: [{ command: "imported", description: "" }] };
+  await nextTick();
+  assert.doesNotMatch(textContent(tree), /Copied/);
+});
+
+test("copy feedback clears when deletion shifts another command into the row", async () => {
+  const { root: tree, store } = await loadHome({
+    commands: { Build: [{ command: "first", description: "" }, { command: "second", description: "" }] },
+  });
+  const copy = findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Copy")[0];
+  await copy.props.onClick();
+  await nextTick();
+  assert.match(textContent(tree), /Copied/);
+  store.commands.Build.splice(0, 1);
+  await nextTick();
+  assert.doesNotMatch(textContent(tree), /Copied/);
+});
+
+test("late clipboard resolution or rejection after collection replacement is ignored", async () => {
+  for (const outcome of ["resolve", "reject"]) {
+    let settle;
+    const clipboard = { writeText: () => new Promise((resolve, reject) => {
+      settle = outcome === "resolve" ? resolve : reject;
+    }) };
+    const { root: tree, store } = await loadHome({
+      clipboard,
+      commands: { Build: [{ command: "old", description: "" }] },
+    });
+    const copy = findAll(tree, (node) => node.type === "button" && textContent(node).trim() === "Copy")[0];
+    const pending = copy.props.onClick();
+    store.commands = { Build: [{ command: "new", description: "" }] };
+    await nextTick();
+    settle(outcome === "resolve" ? undefined : new Error("late failure"));
+    await pending;
+    await nextTick();
+    assert.doesNotMatch(textContent(tree), /Copied|Copy failed/);
+  }
+});
+
 test("empty library and empty groups offer an Add command action", async () => {
   const empty = await loadHome({ commands: {} });
   assert.match(textContent(empty.root), /No commands saved yet/);
