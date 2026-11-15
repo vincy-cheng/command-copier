@@ -1,209 +1,238 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, watch } from "vue";
 import confirmDialog from "../../utils/confirmDialog";
-
 import { store } from "../../store/store";
 
-const emit = defineEmits(["edit"] as const);
+type ListedCommand = { command: string; description: string; index: number };
+const props = defineProps<{
+  groups: { group: string; commands: ListedCommand[] }[];
+  empty: boolean;
+}>();
+const emit = defineEmits(["edit", "add", "clearFilters"] as const);
 
-const openGroup = ref<string | null>(null);
-const openMenu = ref<string | null>(null);
+const feedback = ref<Record<string, string>>({});
+const deleteError = ref("");
 
-function toggleGroup(group: string) {
-  openGroup.value = openGroup.value === group ? null : group;
+watch(
+  () => store.commands,
+  () => { feedback.value = {}; },
+  { deep: true },
+);
+
+function rowKey(group: string, index: number) {
+  return `${group}-${index}`;
 }
 
-function copyCommand(cmd: string) {
-  navigator.clipboard.writeText(cmd);
+async function copyCommand(group: string, index: number, command: string) {
+  const key = rowKey(group, index);
+  const collection = store.commands;
+  const row = collection[group]?.[index];
+  try {
+    await navigator.clipboard.writeText(command);
+    if (
+      store.commands !== collection ||
+      collection[group]?.[index] !== row ||
+      row?.command !== command
+    ) return;
+    feedback.value[key] = "Copied";
+  } catch (error) {
+    if (
+      store.commands !== collection ||
+      collection[group]?.[index] !== row ||
+      row?.command !== command
+    ) return;
+    feedback.value[key] =
+      `Copy failed: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
 
-function toggleMenu(group: string, index: number | string) {
-  const key = `${group}-${index}`;
-  openMenu.value = openMenu.value === key ? null : key;
-}
-
-async function confirmDelete(index: number) {
-  const group = openGroup.value;
-
-  if (group !== null) {
+async function confirmDelete(group: string, index: number) {
+  deleteError.value = "";
+  try {
     await confirmDialog(
       "warning",
-      "Confirm Deletion",
       "Are you sure you want to delete this command?",
-      () => {
-        store.removeCommand(group, index);
-      },
+      "Confirm Deletion",
+      () => store.removeCommand(group, index),
     );
+  } catch (error) {
+    deleteError.value = `Delete failed: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
-
-function editCommand(group: string, index: number) {
-  emit("edit", { group, index });
-  openMenu.value = null;
-}
-
-const data = computed(() => {
-  return Object.entries(store.commands);
-});
-
-function onDocumentClick(e: Event) {
-  const target = e.target as HTMLElement | null;
-  if (!target) return;
-  if (!target.closest) return;
-  // if the click happened outside any menu-container, close menus
-  if (!target.closest(".menu-container")) {
-    openMenu.value = null;
-  }
-}
-
-onMounted(() => {
-  document.addEventListener("click", onDocumentClick);
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener("click", onDocumentClick);
-});
 </script>
 
 <template>
   <div class="list-commands">
-    <h2>Stored Commands</h2>
-    <div v-for="[group, value] in data" :key="group" class="accordion-item">
-      <div class="accordion-header" @click="toggleGroup(group.toString())">
-        <h3>{{ group }}</h3>
-        <i v-if="openGroup === group" class="pi pi-minus"></i>
-        <i v-else class="pi pi-plus"></i>
-      </div>
-      <div v-if="openGroup === group" class="accordion-content">
-        <ul>
-          <li v-for="[index, cmd] in value.entries()" :key="cmd.command">
-            <div>
-              <p>{{ cmd.description }}</p>
-              <p>$ {{ cmd.command }}</p>
-            </div>
-
-            <div class="accordion-content-actions">
-              <button @click="copyCommand(cmd.command)">
-                <i class="pi pi-clipboard"></i>
-              </button>
-
-              <div class="menu-container accordion-content-actions">
-                <button
-                  class="menu-button"
-                  @click.stop="toggleMenu(group, index)"
-                >
-                  <i class="pi pi-ellipsis-v"></i>
-                </button>
-                <div
-                  v-if="openMenu === group + '-' + index"
-                  class="menu-dropdown"
-                >
-                  <button class="menu-item" @click="editCommand(group, index)">
-                    <i class="pi pi-pencil"></i>
-                    Edit
-                  </button>
-                  <button
-                    class="menu-item delete"
-                    @click="confirmDelete(index)"
-                  >
-                    <i class="pi pi-trash"></i>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </li>
-        </ul>
-      </div>
+    <p v-if="deleteError" role="alert">{{ deleteError }}</p>
+    <p v-if="props.empty">No commands saved yet.</p>
+    <div v-else-if="props.groups.length === 0" class="empty-results">
+      <p>No commands match these filters.</p>
+      <button
+        class="button button-secondary"
+        type="button"
+        @click="emit('clearFilters')"
+      >
+        Clear filters
+      </button>
     </div>
+    <section v-for="group in props.groups" :key="group.group" class="group">
+      <h3>
+        {{ group.group }} <span>({{ group.commands.length }})</span>
+      </h3>
+      <p v-if="group.commands.length === 0">No commands in this group yet.</p>
+      <button
+        v-if="group.commands.length === 0"
+        class="button button-secondary"
+        type="button"
+        @click="emit('add', group.group)"
+      >
+        Add command
+      </button>
+      <ul v-else>
+        <li v-for="item in group.commands" :key="item.index">
+          <div class="command-detail">
+            <p v-if="item.description">{{ item.description }}</p>
+            <code>{{ item.command }}</code>
+            <p
+              v-if="feedback[rowKey(group.group, item.index)]"
+              class="copy-feedback"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {{ feedback[rowKey(group.group, item.index)] }}
+            </p>
+          </div>
+          <div class="row-actions">
+            <button
+              class="button button-secondary"
+              type="button"
+              :aria-label="`Copy command from ${group.group}`"
+              @click="copyCommand(group.group, item.index, item.command)"
+            >
+              Copy
+            </button>
+            <button
+              class="button button-secondary"
+              type="button"
+              :aria-label="`Edit command in ${group.group}`"
+              @click="emit('edit', { group: group.group, index: item.index })"
+            >
+              Edit
+            </button>
+            <button
+              class="button button-secondary button-danger"
+              type="button"
+              :aria-label="`Delete command from ${group.group}`"
+              @click="confirmDelete(group.group, item.index)"
+            >
+              Delete
+            </button>
+          </div>
+        </li>
+      </ul>
+    </section>
   </div>
 </template>
+
 <style scoped>
 .list-commands {
   width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-  margin-top: 20px;
+  min-width: 0;
+  text-align: left;
 }
-
-.accordion-item {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-bottom: 10px;
+.group {
+  min-width: 0;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
 }
-
-.accordion-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  cursor: pointer;
-  background-color: #f7f7f7;
-  color: black;
+.group h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
-
-.accordion-header h3 {
+.group h3 span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+ul {
+  list-style: none;
+  padding: 0;
   margin: 0;
 }
-
-.accordion-content {
-  padding: 10px;
-  border-top: 1px solid #ccc;
-}
-
-.accordion-content ul {
-  list-style-type: none;
-  padding: 0;
-}
-
-.accordion-content li {
-  padding: 5px 0;
+li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  text-align: left;
-  border-bottom: 1px solid #ccc;
+  gap: 12px;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
 }
-
-.accordion-content button {
-  height: fit-content;
+.command-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-
-.accordion-content-actions {
+.command-detail p {
+  margin: 4px 0;
+  color: var(--muted);
+}
+.command-detail code {
+  display: block;
+  max-width: 100%;
+  max-height: 120px;
+  overflow: auto;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  color: var(--ink);
+  font: 13px/1.5 var(--mono);
+  white-space: pre;
+  scrollbar-width: thin;
+}
+.copy-feedback {
+  margin: 5px 0 0 !important;
+  color: var(--muted);
+  font-size: 12px;
+}
+.row-actions {
   display: flex;
-  gap: 10px;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-
-.menu-container {
-  position: relative;
+.row-actions .button {
+  min-height: 44px;
+  padding: 0 11px;
+  font-size: 13px;
 }
-
-.menu-dropdown {
-  position: absolute;
-  right: 0;
-  top: 36px;
-  color: #000;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  min-width: 120px;
-  display: flex;
-  flex-direction: column;
+[role="alert"] {
+  color: var(--danger);
 }
-
-.menu-item {
-  padding: 8px 12px;
-  border: none;
-  text-align: left;
-  border-radius: 0;
+.empty-results,
+.list-commands > p {
+  color: var(--muted);
 }
-
-.menu-item:hover {
-  background: #797979;
-}
-
-.menu-item.delete {
-  color: #dc2626;
+@media (max-width: 520px) {
+  li {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .row-actions {
+    width: 100%;
+  }
+  .row-actions .button {
+    flex: 1;
+  }
+  .group {
+    padding: 10px;
+  }
 }
 </style>
