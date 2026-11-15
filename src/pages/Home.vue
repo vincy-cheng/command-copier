@@ -244,7 +244,7 @@ function clearFilters() {
         aria-label="Close dialog"
         @click="requestClose"
       >
-        Close
+        <i class="pi pi-times" aria-hidden="true"></i>
       </button>
       <CreateCommandForm
         v-if="opened"
@@ -379,8 +379,11 @@ dialog::backdrop {
   background: #10182080;
 }
 .dialog-close {
-  display: block;
+  display: grid;
+  width: 44px;
+  padding: 0;
   margin-left: auto;
+  place-items: center;
 }
 @media (max-width: 640px) {
   .library-layout {
