@@ -38,3 +38,6 @@ Build the application in release mode
 ```bash
 npm run build:tauri
 ```
+
+## Preview
+<img width="1620" height="1144" alt="image" src="https://github.com/user-attachments/assets/519f14c1-9f43-4740-b1f0-38af68dccc09" />
