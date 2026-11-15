@@ -170,7 +170,7 @@ li {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px 12px;
-  padding: 10px 0 0;
+  padding: 16px 0 12px;
   border-top: 1px solid var(--line);
 }
 .command-detail {
