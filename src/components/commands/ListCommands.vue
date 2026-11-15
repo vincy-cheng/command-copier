@@ -166,23 +166,24 @@ ul {
   margin: 0;
 }
 li {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
   padding: 10px 0 0;
   border-top: 1px solid var(--line);
 }
 .command-detail {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-wrap: anywhere;
+  display: contents;
 }
 .command-detail p {
-  margin: 4px 0;
+  grid-column: 1 / -1;
+  margin: 0;
   color: var(--muted);
 }
 .command-detail code {
+  grid-column: 1;
+  grid-row: 2;
   display: block;
   max-width: 100%;
   max-height: 120px;
@@ -197,11 +198,15 @@ li {
   scrollbar-width: thin;
 }
 .copy-feedback {
-  margin: 5px 0 0 !important;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin: 0 !important;
   color: var(--muted);
   font-size: 12px;
 }
 .row-actions {
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
   flex: none;
   flex-wrap: wrap;
@@ -221,11 +226,11 @@ li {
 }
 @media (max-width: 520px) {
   li {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
   }
   .row-actions {
+    grid-column: 1;
+    grid-row: 3;
     width: 100%;
   }
   .row-actions .button {
