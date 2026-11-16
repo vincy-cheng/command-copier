@@ -13,7 +13,7 @@ Use npm with `package-lock.json`. Desktop development also requires Rust and the
 | Run import regression checks | `node tests/import-commands.mjs` |
 | Existing lint script; rewrites files | `npm run lint` |
 
-Development commands require `DEV_PORT`. Vite applies it with `strictPort`, and `npm run dev:tauri` passes a matching Tauri `devUrl` override. Example: `DEV_PORT=<port> npm run dev:tauri`.
+Copy `.env.example` to `.env` and set `DEV_PORT`. Vite applies it with `strictPort`; `npm run dev:tauri` loads `.env` and passes a matching Tauri `devUrl` override.
 
 ## Verification status
 
