@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "dev:tauri": "tauri dev",
+    "dev:tauri": "test -n \"$DEV_PORT\" && tauri dev --config \"{\\\"build\\\":{\\\"devUrl\\\":\\\"http://localhost:$DEV_PORT\\\"}}\"",
     "build": "vue-tsc --noEmit && vite build",
     "build:tauri": "tauri build",
     "preview": "vite preview",
