@@ -4,11 +4,11 @@ This project is a [Tauri](https://v2.tauri.app/) application developed with Vue 
 
 ## Features
 
-- **Adding Commands**: Users can add new commands with descriptions and group them.
-- **Listing Commands**: Commands are displayed in an accordion-style list, grouped by their categories.
-- **Copying Commands**: Users can copy commands to the clipboard with a single click.
-- **Exporting Commands**: Users can export the list of commands to a JSON file for backup or sharing. It is exported to /Download folder.
-- **Importing Commands**: Users can import commands from a JSON file to restore or update their command list.
+- **Create and edit commands**: Use a dialog to choose a group, enter a command and optional description, and save changes. Unsaved changes require confirmation before discarding.
+- **Find commands**: Search group names, commands and descriptions, or filter by group. Command rows remain visible in a grouped library.
+- **Copy commands**: Copy the original command text with success or failure feedback. Editing, deleting or replacing commands clears stale feedback.
+- **System appearance**: Follow the system light or dark theme, with a group sidebar on desktop and a group selector in narrow windows.
+- **Import and export**: Replace the collection from validated JSON or export `commands.json` to Downloads. Import blocks new editing until it completes or is cancelled; failed persistence preserves existing data.
 
 ## Prerequisites
 
@@ -39,6 +39,5 @@ Build the application in release mode
 npm run build:tauri
 ```
 
-### Screenshots
-![image](https://github.com/user-attachments/assets/9e7bd2ef-5096-4596-b298-bdcfe7f12829)
-
+## Preview
+<img width="1620" height="1144" alt="image" src="https://github.com/user-attachments/assets/519f14c1-9f43-4740-b1f0-38af68dccc09" />

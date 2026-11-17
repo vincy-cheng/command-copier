@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 
 /node_modules
+
+# Local environment
+.env
+
+# Local dev-flow artifacts
+docs/features/
+.dev-flow/

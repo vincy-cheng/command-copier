@@ -21,16 +21,19 @@ type Commands = {
 // Define the type for the store
 interface Store {
   commands: Commands;
-  refreshCommands: () => void;
+  importing: boolean;
+  refreshCommands: () => Promise<void>;
   addCommand: (key: string, command: Command) => void;
+  updateCommand: (key: string, index: number, command: Command) => void;
   removeCommand: (key: string, index: number) => void;
   removeEntireGroup: (key: string) => void;
-  importCommands: () => void;
+  importCommands: () => Promise<void>;
   exportCommands: () => void;
 }
 
 export const store = reactive<Store>({
   commands: {},
+  importing: false,
   async refreshCommands() {
     const storedCommands = localStorage.getItem("commands");
     if (storedCommands) {
@@ -38,39 +41,93 @@ export const store = reactive<Store>({
     }
   },
   addCommand(key: string, command: Command) {
-    if (!this.commands[key]) {
-      this.commands[key] = [];
-    }
-    this.commands[key].push(command);
-
-    // Save the commands to local storage
-    localStorage.setItem("commands", JSON.stringify(this.commands));
+    const commands = { ...this.commands, [key]: [...(this.commands[key] ?? []), command] };
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
+  },
+  updateCommand(key: string, index: number, command: Command) {
+    if (!this.commands[key] || !this.commands[key][index]) return;
+    const commands = { ...this.commands, [key]: [...this.commands[key]] };
+    commands[key][index] = command;
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
   },
   importCommands() {
+    if (this.importing) return Promise.resolve();
+    this.importing = true;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file) {
-        const data = await file.text();
-        this.commands = JSON.parse(data) as Commands;
-        localStorage.setItem("commands", JSON.stringify(this.commands));
-        this.refreshCommands();
-        sendAlert("info", "Commands are imported");
-      }
+    input.hidden = true;
+    let finish!: () => void;
+    let finished = false;
+    const completion = new Promise<void>((resolve) => { finish = resolve; });
+    const cleanup = () => {
+      if (finished) return;
+      finished = true;
+      input.remove();
+      this.importing = false;
+      finish();
     };
-    input.click();
+    input.oncancel = cleanup;
+    input.onchange = async () => {
+      try {
+        const file = input.files?.[0];
+        if (!file) return;
+        const data = await file.text();
+        const commands = JSON.parse(data);
+        if (
+          !commands ||
+          typeof commands !== "object" ||
+          Array.isArray(commands) ||
+          !Object.values(commands).every(
+            (group) =>
+              Array.isArray(group) &&
+              group.every(
+                (cmd) =>
+                  cmd &&
+                  typeof cmd.command === "string" &&
+                  typeof cmd.description === "string",
+              ),
+          )
+        ) {
+          throw new Error("Expected groups containing commands and descriptions");
+        }
+        localStorage.setItem("commands", JSON.stringify(commands));
+        this.commands = commands;
+      } catch (error) {
+        try {
+          await sendAlert("error", `Import failed: ${error instanceof Error ? error.message : String(error)}`);
+        } catch { /* Dialog failures must not strand the import lifecycle. */ }
+        return;
+      } finally {
+        cleanup();
+      }
+      try { await sendAlert("info", "Commands are imported"); } catch { /* Import is already complete. */ }
+    };
+    // Keep the picker alive while WebKit waits for file selection.
+    try {
+      document.body.appendChild(input);
+      input.click();
+    } catch (error) {
+      cleanup();
+      void sendAlert("error", `Import failed: ${error instanceof Error ? error.message : String(error)}`).catch(() => {});
+    }
+    return completion;
   },
   removeCommand(key: string, index: number) {
-    this.commands[key].splice(index, 1);
-    localStorage.setItem("commands", JSON.stringify(this.commands));
-    this.refreshCommands();
+    if (!this.commands[key] || !this.commands[key][index]) return;
+    const commands = { ...this.commands, [key]: [...this.commands[key]] };
+    commands[key].splice(index, 1);
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
   },
   removeEntireGroup(key: string) {
-    delete this.commands[key];
-    localStorage.setItem("commands", JSON.stringify(this.commands));
-    this.refreshCommands();
+    if (!this.commands[key]) return;
+    const commands = { ...this.commands };
+    delete commands[key];
+    localStorage.setItem("commands", JSON.stringify(commands));
+    this.commands = commands;
   },
   async exportCommands() {
     const data = JSON.stringify(this.commands, null, 2);
