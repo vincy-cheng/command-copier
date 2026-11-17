@@ -3,9 +3,12 @@
   "private": true,
   "version": "0.2.0",
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "vite dev",
-    "dev:tauri": "node --env-file-if-exists=.env scripts/dev-tauri.mjs",
+    "dev:tauri": "node --env-file-if-exists=.env scripts/dev-tauri.js",
     "build": "vue-tsc --noEmit && vite build",
     "build:tauri": "tauri build",
     "preview": "vite preview",
