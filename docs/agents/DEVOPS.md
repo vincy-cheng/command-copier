@@ -11,9 +11,9 @@ Use npm with `package-lock.json`. Desktop development also requires Rust and the
 | Build desktop bundles | `npm run build:tauri` |
 | Run component and store behavior tests | `node --test tests/*.test.mjs` |
 | Run import regression checks | `node tests/import-commands.mjs` |
-| Existing lint script; rewrites files | `npm run lint` |
+| Lint frontend without rewriting files | `npm run lint` |
 
-Copy `.env.example` to `.env` and set `DEV_PORT`. Vite applies it with `strictPort`; `npm run dev:tauri` loads `.env` and passes a matching Tauri `devUrl` override.
+Copy `.env.example` to `.env` and set `DEV_PORT`. Vite reads it with `strictPort`. `npm run dev:tauri` loads `.env` through Node and runs `scripts/dev-tauri.js`, which passes a matching `build.devUrl` override to Tauri via `--config`. Child processes inherit the environment; no port is hardcoded in the Tauri configuration.
 
 ## Verification status
 
@@ -23,7 +23,7 @@ The suite covers persistence failure, intersecting search/group filters, origina
 
 The independent gate passed the build, 23 tests and six import scenarios on 2026-11-15. Chromium screenshots and focus checks cover responsive light/dark layouts; they do not establish native WebKit clipboard/picker behavior, native dialog focus traversal/return, or live OS theme switching.
 
-The installed ESLint 9 fails to find a flat configuration when invoked as `./node_modules/.bin/eslint src --no-fix`. The repository currently has legacy `.eslintrc.js`; lint is not a working verification gate. Repairing lint is separate from bootstrap.
+ESLint uses `eslint.config.js`. The `CI` workflow in `.github/workflows/ci.yml` runs on PRs targeting `dev` or `master`, using Node 24 and Ubuntu 22.04. Its `checks` job runs locked npm installation, lint, behavior tests, import regression checks, the frontend build, and `cargo check --locked` for the Tauri backend. Configure `checks` as a required status check in GitHub branch protection to enforce the gate. Installer builds remain in the release workflow.
 
 ## Dev-flow
 
